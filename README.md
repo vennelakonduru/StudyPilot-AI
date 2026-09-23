@@ -1,7 +1,3 @@
-Your updated `README.md` is formatted cleanly and covers every essential detail.
-
-Here is the finalized code block ready to be copied directly into your **`README.md`** file:
-
 ```markdown
 # 🎓 StudyPilot AI
 
