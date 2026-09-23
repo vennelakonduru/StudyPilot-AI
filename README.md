@@ -16,3 +16,37 @@ StudyPilot AI allows students to upload study documents or paste notes to summar
    ```bash
    git clone [https://github.com/YOUR_USERNAME/StudyPilot-AI.git](https://github.com/YOUR_USERNAME/StudyPilot-AI.git)
    cd StudyPilot-AI
+2. Create and Activate a Virtual Environment
+Bash
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+3. Install Requirements
+Bash
+pip install -r requirements.txt
+4. Add Your API Key in .streamlit/secrets.toml
+Create a .streamlit directory in your project root and add a secrets.toml file inside it:
+
+Ini, TOML
+GEMINI_API_KEY = "your_actual_key_here"
+5. Run the App
+Bash
+streamlit run app.py
+📂 Project Structure
+Plaintext
+StudyPilot-AI/
+│
+├── .streamlit/
+│   └── secrets.toml
+│
+├── app.py
+├── requirements.txt
+├── .gitignore
+└── README.md
+💻 Tech Stack
+Frontend/Framework: Streamlit
+
+AI Model & SDK: Google Gemini API (google-genai)
+
+Document Processing: PyPDF2, python-docx
+
+Language: Python 3.10
