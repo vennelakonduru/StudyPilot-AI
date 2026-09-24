@@ -7,7 +7,7 @@
 
 Try the deployed application:
 
-[🚀 Open StudyPilot AI](https://studypilot-ai-vennelakonduru.streamlit.app/)
+https://studypilot-ai-vennelakonduru.streamlit.app/
 
 ## 📌 What is StudyPilot AI?
 
