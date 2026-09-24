@@ -1,5 +1,5 @@
 ````markdown
-# 🎓 StudyPilot AI
+🎓 StudyPilot AI
 
 > An AI-powered smart learning companion built with Python, Streamlit, and Google Gemini.
 
