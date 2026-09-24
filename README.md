@@ -175,5 +175,6 @@ The `requirements.txt` file contains:
 streamlit
 google-genai
 ```
+**Author:** Vennela Raghava Konduru
 
 ````
