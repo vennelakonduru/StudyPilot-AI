@@ -167,14 +167,4 @@ http://localhost:8501
 
 Open the localhost address in your browser to view and use StudyPilot AI.
 
-## 📦 Requirements
-
-The `requirements.txt` file contains:
-
-```text
-streamlit
-google-genai
-```
-
-````
 Author: Vennela Raghava Konduru
