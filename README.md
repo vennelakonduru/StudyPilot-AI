@@ -35,14 +35,15 @@ The Generate Quiz operation creates an interactive quiz from the provided study 
 
 ## 🛠️ Technologies Used
 
-| Technology | Purpose |
-|---|---|
-| Python | Main programming language |
-| Streamlit | Web application interface |
-| Google Gemini API | AI-powered content generation |
-| Google Gen AI SDK | Gemini API integration |
-| JSON | Quiz data handling |
-| Regular Expressions (`re`) | Response processing |
+| Technology                 | Purpose                       |
+| -------------------------- | ----------------------------- |
+| Python                     | Main programming language     |
+| Streamlit                  | Web application interface     |
+| Google Gemini API          | AI-powered content generation |
+| Google Gen AI SDK          | Gemini API integration        |
+| JSON                       | Quiz data handling            |
+| Regular Expressions (`re`) | Response processing           |
+
 
 ## 📂 File Structure
 
