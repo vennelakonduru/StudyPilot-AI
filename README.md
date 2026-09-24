@@ -177,4 +177,4 @@ google-genai
 ```
 
 ````
-**Author:** Vennela Raghava Konduru
+Author: Vennela Raghava Konduru
