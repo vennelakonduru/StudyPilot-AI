@@ -32,25 +32,22 @@ if "quiz_score" not in st.session_state:
 
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
-
-    client = genai.Client(
-        api_key=api_key
-    )
-
+    client = genai.Client(api_key=api_key)
 except Exception:
     client = None
 
 
 MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite"
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.8-flash"
 ]
 
 
 st.markdown(
     """
     <style>
-
     .stApp {
         background-color: #f8fafc;
     }
@@ -114,13 +111,6 @@ st.markdown(
         border-color: #e5e7eb !important;
     }
 
-    .footer {
-        text-align: center;
-        color: #94a3b8;
-        font-size: 12px;
-        padding-top: 30px;
-    }
-
     </style>
     """,
     unsafe_allow_html=True
@@ -129,9 +119,7 @@ st.markdown(
 
 st.title("🎓 StudyPilot AI")
 
-st.subheader(
-    "Your Smart Learning Companion"
-)
+st.subheader("Your Smart Learning Companion")
 
 st.write(
     "Turn your study material into clear summaries, "
@@ -140,7 +128,6 @@ st.write(
 )
 
 st.divider()
-
 
 st.subheader("📚 Study Material")
 
@@ -158,7 +145,6 @@ study_text = st.text_area(
     label_visibility="collapsed"
 )
 
-
 st.subheader("⚙️ Choose an Operation")
 
 st.caption(
@@ -167,7 +153,6 @@ st.caption(
 
 
 col1, col2 = st.columns(2)
-
 
 with col1:
 
@@ -187,10 +172,12 @@ with col1:
         )
 
     if clicked:
+
         st.session_state.operation = "Summarize"
         st.session_state.result = ""
         st.session_state.quiz = []
         st.session_state.quiz_submitted = False
+
         st.rerun()
 
 
@@ -212,15 +199,16 @@ with col2:
         )
 
     if clicked:
+
         st.session_state.operation = "Organize Notes"
         st.session_state.result = ""
         st.session_state.quiz = []
         st.session_state.quiz_submitted = False
+
         st.rerun()
 
 
 col3, col4 = st.columns(2)
-
 
 with col3:
 
@@ -240,10 +228,12 @@ with col3:
         )
 
     if clicked:
+
         st.session_state.operation = "Explain Topic"
         st.session_state.result = ""
         st.session_state.quiz = []
         st.session_state.quiz_submitted = False
+
         st.rerun()
 
 
@@ -265,10 +255,12 @@ with col4:
         )
 
     if clicked:
+
         st.session_state.operation = "Generate Quiz"
         st.session_state.result = ""
         st.session_state.quiz = []
         st.session_state.quiz_submitted = False
+
         st.rerun()
 
 
@@ -296,6 +288,7 @@ if run_operation:
 
         st.stop()
 
+
     if client is None:
 
         st.error(
@@ -304,6 +297,7 @@ if run_operation:
         )
 
         st.stop()
+
 
     selected = st.session_state.operation
 
@@ -434,6 +428,7 @@ Topic:
                             )
 
                             if response and response.text:
+
                                 break
 
                         except APIError as error:
@@ -443,12 +438,15 @@ Topic:
                             if error.code in [429, 503]:
 
                                 if attempt < 1:
+
                                     time.sleep(2)
+
                                     continue
 
                                 break
 
                             if error.code in [400, 404]:
+
                                 break
 
                             raise
@@ -458,12 +456,16 @@ Topic:
                             last_error = str(error)
 
                             if attempt < 1:
+
                                 time.sleep(2)
+
                                 continue
 
                             break
 
+
                     if response and response.text:
+
                         break
 
 
@@ -550,6 +552,7 @@ Study material:
                             )
 
                             if response and response.text:
+
                                 break
 
                         except APIError as error:
@@ -559,12 +562,15 @@ Study material:
                             if error.code in [429, 503]:
 
                                 if attempt < 1:
+
                                     time.sleep(2)
+
                                     continue
 
                                 break
 
                             if error.code in [400, 404]:
+
                                 break
 
                             raise
@@ -574,12 +580,16 @@ Study material:
                             last_error = str(error)
 
                             if attempt < 1:
+
                                 time.sleep(2)
+
                                 continue
 
                             break
 
+
                     if response and response.text:
+
                         break
 
 
@@ -593,6 +603,7 @@ Study material:
 
 
             raw_quiz = response.text.strip()
+
 
             raw_quiz = re.sub(
                 r"^```json\s*",
@@ -642,7 +653,8 @@ Study material:
             if len(quiz) != 10:
 
                 raise Exception(
-                    f"Gemini generated {len(quiz)} questions instead of 10."
+                    f"Gemini generated {len(quiz)} "
+                    "questions instead of 10."
                 )
 
 
@@ -651,7 +663,8 @@ Study material:
                 if not isinstance(question, dict):
 
                     raise Exception(
-                        f"Question {index + 1} has an invalid format."
+                        f"Question {index + 1} "
+                        "has an invalid format."
                     )
 
 
@@ -663,12 +676,14 @@ Study material:
                     "explanation"
                 ]
 
+
                 for field in required_fields:
 
                     if field not in question:
 
                         raise Exception(
-                            f"Question {index + 1} is missing '{field}'."
+                            f"Question {index + 1} "
+                            f"is missing '{field}'."
                         )
 
 
@@ -678,7 +693,8 @@ Study material:
                 if not isinstance(options, dict):
 
                     raise Exception(
-                        f"Question {index + 1} has invalid options."
+                        f"Question {index + 1} "
+                        "has invalid options."
                     )
 
 
@@ -687,7 +703,8 @@ Study material:
                     if letter not in options:
 
                         raise Exception(
-                            f"Question {index + 1} is missing option {letter}."
+                            f"Question {index + 1} "
+                            f"is missing option {letter}."
                         )
 
 
@@ -699,7 +716,8 @@ Study material:
                 ]:
 
                     raise Exception(
-                        f"Question {index + 1} has an invalid correct answer."
+                        f"Question {index + 1} "
+                        "has an invalid correct answer."
                     )
 
 
@@ -736,10 +754,6 @@ Study material:
             )
 
             with st.expander("Technical details"):
-
-                st.write(
-                    "This information is for debugging the deployment."
-                )
 
                 st.exception(error)
 
@@ -852,6 +866,7 @@ if (
                 if selected_answer is None:
 
                     unanswered += 1
+
                     continue
 
 
