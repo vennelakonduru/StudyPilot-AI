@@ -1,16 +1,21 @@
 import json
 import re
-import time
 
 import streamlit as st
 from google import genai
 from google.genai.errors import APIError
+
 
 st.set_page_config(
     page_title="StudyPilot AI",
     page_icon="🎓",
     layout="centered"
 )
+
+
+# ============================================================
+# SESSION STATE
+# ============================================================
 
 if "operation" not in st.session_state:
     st.session_state.operation = "Summarize"
@@ -27,6 +32,11 @@ if "quiz_submitted" not in st.session_state:
 if "quiz_score" not in st.session_state:
     st.session_state.quiz_score = 0
 
+
+# ============================================================
+# GEMINI CLIENT
+# ============================================================
+
 try:
 
     api_key = st.secrets["GEMINI_API_KEY"]
@@ -39,11 +49,24 @@ except Exception:
 
     client = None
 
+
+# ============================================================
+# GEMINI MODELS
+# ============================================================
+# Flash-Lite is placed first to reduce usage/cost.
+# Do NOT use Gemini 2.5 here.
+
 MODELS = [
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
     "gemini-3.6-flash",
-    "gemini-3.8-flash",
-    "gemini-3.5-flash-lite"
+    "gemini-3.8-flash"
 ]
+
+
+# ============================================================
+# CSS
+# ============================================================
 
 st.markdown(
     """
@@ -143,6 +166,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
+# ============================================================
+# HEADER
+# ============================================================
+
 st.title("🎓 StudyPilot AI")
 
 st.subheader(
@@ -156,6 +184,11 @@ st.write(
 )
 
 st.divider()
+
+
+# ============================================================
+# STUDY MATERIAL
+# ============================================================
 
 st.subheader("📚 Study Material")
 
@@ -173,13 +206,20 @@ study_text = st.text_area(
     label_visibility="collapsed"
 )
 
+
+# ============================================================
+# OPERATION SELECTION
+# ============================================================
+
 st.subheader("⚙️ Choose an Operation")
 
 st.caption(
     "Select one operation and then click Run Operation."
 )
 
+
 col1, col2 = st.columns(2)
+
 
 with col1:
 
@@ -204,6 +244,7 @@ with col1:
 
         st.rerun()
 
+
 with col2:
 
     if st.session_state.operation == "Organize Notes":
@@ -227,7 +268,9 @@ with col2:
 
         st.rerun()
 
+
 col3, col4 = st.columns(2)
+
 
 with col3:
 
@@ -252,6 +295,7 @@ with col3:
 
         st.rerun()
 
+
 with col4:
 
     if st.session_state.operation == "Generate Quiz":
@@ -275,17 +319,25 @@ with col4:
 
         st.rerun()
 
+
 st.write("")
+
 
 st.info(
     f"Selected operation: **{st.session_state.operation}**"
 )
+
+
+# ============================================================
+# RUN OPERATION
+# ============================================================
 
 run_operation = st.button(
     "🚀 Run Operation",
     type="primary",
     use_container_width=True
 )
+
 
 if run_operation:
 
@@ -297,7 +349,19 @@ if run_operation:
 
         st.stop()
 
+
+    if client is None:
+
+        st.error(
+            "Gemini API key is missing. "
+            "Please check .streamlit/secrets.toml."
+        )
+
+        st.stop()
+
+
     selected = st.session_state.operation
+
 
     st.session_state.result = ""
 
@@ -306,6 +370,11 @@ if run_operation:
     st.session_state.quiz_submitted = False
 
     st.session_state.quiz_score = 0
+
+
+    # ========================================================
+    # SUMMARIZE
+    # ========================================================
 
     if selected == "Summarize":
 
@@ -329,6 +398,11 @@ Study material:
 {study_text}
 """
 
+
+    # ========================================================
+    # ORGANIZE NOTES
+    # ========================================================
+
     elif selected == "Organize Notes":
 
         prompt = f"""
@@ -350,6 +424,11 @@ Material:
 
 {study_text}
 """
+
+
+    # ========================================================
+    # EXPLAIN TOPIC
+    # ========================================================
 
     elif selected == "Explain Topic":
 
@@ -388,138 +467,118 @@ Topic:
 {study_text}
 """
 
+
+    # ========================================================
+    # NORMAL OPERATIONS
+    # ========================================================
+
     if selected != "Generate Quiz":
 
         try:
-
-            if client is None:
-
-                st.error(
-                    "Gemini API key is missing. "
-                    "Please check .streamlit/secrets.toml."
-                )
-
-                st.stop()
 
             response = None
 
             last_error = ""
 
-            loading_messages = {
-
-                "Summarize":
-                    "StudyPilot AI is preparing your summary...",
-
-                "Organize Notes":
-                    "StudyPilot AI is organizing your notes...",
-
-                "Explain Topic":
-                    "StudyPilot AI is preparing your explanation..."
-
-            }
-
             with st.spinner(
-                loading_messages.get(
-                    selected,
-                    "StudyPilot AI is working..."
-                )
+                "StudyPilot AI is working..."
             ):
 
                 for model_name in MODELS:
 
-                    for attempt in range(3):
+                    try:
 
-                        try:
-
-                            response = (
-                                client.models.generate_content(
-                                    model=model_name,
-                                    contents=prompt
-                                )
+                        response = (
+                            client.models.generate_content(
+                                model=model_name,
+                                contents=prompt
                             )
+                        )
 
-                            if (
-                                response
-                                and response.text
-                            ):
+                        if response and response.text:
 
-                                break
+                            break
 
-                        except APIError as error:
 
-                            last_error = str(error)
+                    except APIError as error:
 
-                            if error.code in [429, 503]:
+                        last_error = str(error)
 
-                                if attempt < 2:
+                        error_code = getattr(
+                            error,
+                            "code",
+                            None
+                        )
 
-                                    time.sleep(
-                                        2 * (attempt + 1)
-                                    )
+                        # Quota/rate-limit error
+                        # Move to the next model.
+                        if error_code == 429:
 
-                                    continue
+                            continue
 
-                                break
+                        # Model unavailable
+                        if error_code == 404:
 
-                            if error.code in [400, 404]:
+                            continue
 
-                                break
+                        # Temporary server error
+                        if error_code == 503:
 
-                            raise
+                            continue
 
-                        except Exception as error:
+                        raise
 
-                            last_error = str(error)
 
-                            error_text = (
-                                str(error).lower()
-                            )
+                    except Exception as error:
 
-                            if (
-                                "404" in error_text
-                                or "429" in error_text
-                                or "503" in error_text
-                                or "unavailable"
-                                in error_text
-                                or "not found"
-                                in error_text
-                            ):
+                        last_error = str(error)
 
-                                if attempt < 2:
+                        error_text = str(
+                            error
+                        ).lower()
 
-                                    time.sleep(
-                                        2 * (attempt + 1)
-                                    )
+                        if (
+                            "429" in error_text
+                            or "quota" in error_text
+                            or "resource_exhausted"
+                            in error_text
+                            or "404" in error_text
+                            or "not found" in error_text
+                            or "unavailable"
+                            in error_text
+                            or "503" in error_text
+                        ):
 
-                                    continue
+                            continue
 
-                                break
+                        raise
 
-                            raise
-
-                    if (
-                        response
-                        and response.text
-                    ):
-
-                        break
 
             if not response or not response.text:
 
                 raise Exception(
-                    "Gemini AI is temporarily unavailable. "
-                    "Please try again."
+                    last_error
+                    if last_error
+                    else
+                    "Gemini did not return a response."
                 )
+
 
             st.session_state.result = (
                 response.text.strip()
             )
+
 
         except Exception as error:
 
             st.error(
                 f"Something went wrong: {error}"
             )
+
+
+    # ========================================================
+    # GENERATE QUIZ
+    # ========================================================
 
     else:
 
@@ -538,8 +597,9 @@ Rules:
 - Each question must have one correct answer.
 - Give a short explanation for each correct answer.
 - Do not reveal the answers in the question section.
-
-Return ONLY valid JSON.
+- Return ONLY valid JSON.
+- Do not use Markdown code fences.
+- Do not add any text before or after the JSON.
 
 Use exactly this structure:
 
@@ -563,17 +623,13 @@ Study material:
 {study_text}
 """
 
+
         try:
 
-            if client is None:
-
-                st.error(
-                    "Gemini API key is missing."
-                )
-
-                st.stop()
-
             response = None
+
+            last_error = ""
+
 
             with st.spinner(
                 "StudyPilot AI is creating your quiz..."
@@ -581,58 +637,97 @@ Study material:
 
                 for model_name in MODELS:
 
-                    for attempt in range(3):
+                    try:
 
-                        try:
-
-                            response = (
-                                client.models.generate_content(
-                                    model=model_name,
-                                    contents=quiz_prompt
-                                )
+                        response = (
+                            client.models.generate_content(
+                                model=model_name,
+                                contents=quiz_prompt
                             )
+                        )
 
-                            if (
-                                response
-                                and response.text
-                            ):
+                        if response and response.text:
 
-                                break
+                            break
 
-                        except APIError as error:
 
-                            if error.code in [429, 503]:
+                    except APIError as error:
 
-                                if attempt < 2:
+                        last_error = str(error)
 
-                                    time.sleep(
-                                        2 * (attempt + 1)
-                                    )
+                        error_code = getattr(
+                            error,
+                            "code",
+                            None
+                        )
 
-                                    continue
 
-                                break
+                        # If one model has exhausted quota,
+                        # try the next available model ONCE.
+                        if error_code == 429:
 
-                            if error.code in [400, 404]:
+                            continue
 
-                                break
 
-                            raise
+                        # If a model is unavailable,
+                        # try the next model.
+                        if error_code == 404:
 
-                    if (
-                        response
-                        and response.text
-                    ):
+                            continue
 
-                        break
+
+                        # Temporary server issue.
+                        if error_code == 503:
+
+                            continue
+
+
+                        raise
+
+
+                    except Exception as error:
+
+                        last_error = str(error)
+
+                        error_text = str(
+                            error
+                        ).lower()
+
+
+                        if (
+                            "429" in error_text
+                            or "quota" in error_text
+                            or "resource_exhausted"
+                            in error_text
+                            or "404" in error_text
+                            or "not found" in error_text
+                            or "unavailable"
+                            in error_text
+                            or "503" in error_text
+                        ):
+
+                            continue
+
+
+                        raise
+
 
             if not response or not response.text:
 
                 raise Exception(
-                    "Unable to generate the quiz."
+                    last_error
+                    if last_error
+                    else
+                    "Gemini did not return a response."
                 )
 
+
+            # ==================================================
+            # CLEAN JSON RESPONSE
+            # ==================================================
+
             raw_quiz = response.text.strip()
+
 
             raw_quiz = re.sub(
                 r"^```json\s*",
@@ -641,11 +736,13 @@ Study material:
                 flags=re.IGNORECASE
             )
 
+
             raw_quiz = re.sub(
                 r"^```\s*",
                 "",
                 raw_quiz
             )
+
 
             raw_quiz = re.sub(
                 r"\s*```$",
@@ -653,18 +750,118 @@ Study material:
                 raw_quiz
             )
 
+
+            raw_quiz = raw_quiz.strip()
+
+
+            # If Gemini added text before/after JSON,
+            # extract the JSON array.
+
+            if not raw_quiz.startswith("["):
+
+                json_start = raw_quiz.find("[")
+
+                json_end = raw_quiz.rfind("]")
+
+                if (
+                    json_start != -1
+                    and json_end != -1
+                ):
+
+                    raw_quiz = raw_quiz[
+                        json_start:
+                        json_end + 1
+                    ]
+
+
             quiz = json.loads(
                 raw_quiz
             )
 
-            if (
-                not isinstance(quiz, list)
-                or len(quiz) != 10
+
+            # ==================================================
+            # VALIDATE QUIZ
+            # ==================================================
+
+            if not isinstance(
+                quiz,
+                list
             ):
+
+                raise Exception(
+                    "The AI returned an invalid quiz format."
+                )
+
+
+            if len(quiz) != 10:
 
                 raise Exception(
                     "The AI did not generate exactly 10 questions."
                 )
+
+
+            for index, question in enumerate(quiz):
+
+                required_fields = [
+                    "number",
+                    "question",
+                    "options",
+                    "correct",
+                    "explanation"
+                ]
+
+
+                for field in required_fields:
+
+                    if field not in question:
+
+                        raise Exception(
+                            f"Question {index + 1} "
+                            f"is missing '{field}'."
+                        )
+
+
+                options = question["options"]
+
+
+                if not isinstance(
+                    options,
+                    dict
+                ):
+
+                    raise Exception(
+                        f"Question {index + 1} "
+                        "has invalid options."
+                    )
+
+
+                for letter in [
+                    "A",
+                    "B",
+                    "C",
+                    "D"
+                ]:
+
+                    if letter not in options:
+
+                        raise Exception(
+                            f"Question {index + 1} "
+                            f"is missing option {letter}."
+                        )
+
+
+                if question["correct"] not in [
+                    "A",
+                    "B",
+                    "C",
+                    "D"
+                ]:
+
+                    raise Exception(
+                        f"Question {index + 1} "
+                        "has an invalid correct answer."
+                    )
+
 
             st.session_state.quiz = quiz
 
@@ -672,11 +869,52 @@ Study material:
 
             st.session_state.quiz_score = 0
 
-        except Exception as error:
+
+        except json.JSONDecodeError as error:
 
             st.error(
-                f"Unable to generate quiz: {error}"
+                "The AI returned an invalid quiz format."
             )
+
+            st.caption(
+                f"JSON error: {error}"
+            )
+
+
+        except Exception as error:
+
+            error_text = str(
+                error
+            ).lower()
+
+
+            if (
+                "429" in error_text
+                or "quota" in error_text
+                or "resource_exhausted"
+                in error_text
+            ):
+
+                st.error(
+                    "Gemini API quota is currently exhausted."
+                )
+
+                st.info(
+                    "Please wait for your Gemini quota "
+                    "to reset, or enable billing in your "
+                    "Google AI project for additional quota."
+                )
+
+            else:
+
+                st.error(
+                    f"Unable to generate quiz: {error}"
+                )
+
+
+# ============================================================
+# DISPLAY NORMAL RESULT
+# ============================================================
 
 if (
     st.session_state.operation != "Generate Quiz"
@@ -689,7 +927,9 @@ if (
         f"✨ {st.session_state.operation} Result"
     )
 
+
     result = st.session_state.result
+
 
     result = re.sub(
         r"<[^>]+>",
@@ -697,19 +937,27 @@ if (
         result
     )
 
+
     st.markdown(
         result
     )
+
 
     st.caption(
         "Copy the complete result using the copy button "
         "in the box below."
     )
 
+
     st.code(
         result,
         language="text"
     )
+
+
+# ============================================================
+# DISPLAY QUIZ
+# ============================================================
 
 if (
     st.session_state.operation == "Generate Quiz"
@@ -717,6 +965,11 @@ if (
 ):
 
     quiz = st.session_state.quiz
+
+
+    # ========================================================
+    # QUIZ QUESTIONS
+    # ========================================================
 
     if not st.session_state.quiz_submitted:
 
@@ -730,10 +983,6 @@ if (
             "Answer all 10 questions and submit your quiz."
         )
 
-        st.progress(
-            0,
-            text="10 questions"
-        )
 
         with st.form(
             "quiz_form"
@@ -745,9 +994,11 @@ if (
                     f"### Question {question['number']}"
                 )
 
+
                 st.write(
                     question["question"]
                 )
+
 
                 options = [
 
@@ -761,6 +1012,7 @@ if (
 
                 ]
 
+
                 st.radio(
                     "Select your answer",
                     options,
@@ -768,12 +1020,15 @@ if (
                     key=f"answer_{index}"
                 )
 
+
                 st.divider()
+
 
             submitted = st.form_submit_button(
                 "Submit Quiz",
                 use_container_width=True
             )
+
 
         if submitted:
 
@@ -781,11 +1036,15 @@ if (
 
             unanswered = 0
 
+
             for index, question in enumerate(quiz):
 
-                selected_answer = st.session_state.get(
-                    f"answer_{index}"
+                selected_answer = (
+                    st.session_state.get(
+                        f"answer_{index}"
+                    )
                 )
+
 
                 if selected_answer is None:
 
@@ -793,9 +1052,11 @@ if (
 
                     continue
 
+
                 selected_letter = (
                     selected_answer[0]
                 )
+
 
                 if (
                     selected_letter
@@ -804,12 +1065,14 @@ if (
 
                     score += 1
 
+
             if unanswered > 0:
 
                 st.warning(
                     f"Please answer all questions. "
                     f"{unanswered} question(s) are unanswered."
                 )
+
 
             else:
 
@@ -819,11 +1082,17 @@ if (
 
                 st.rerun()
 
+
+    # ========================================================
+    # QUIZ RESULTS
+    # ========================================================
+
     else:
 
         score = st.session_state.quiz_score
 
         percentage = score * 10
+
 
         st.divider()
 
@@ -831,7 +1100,9 @@ if (
             "🎉 Quiz Completed"
         )
 
+
         score_col1, score_col2 = st.columns(2)
+
 
         with score_col1:
 
@@ -840,6 +1111,7 @@ if (
                 f"{score} / 10"
             )
 
+
         with score_col2:
 
             st.metric(
@@ -847,19 +1119,25 @@ if (
                 f"{percentage}%"
             )
 
+
         st.progress(
             percentage / 100
         )
+
 
         st.subheader(
             "📋 Answer Review"
         )
 
+
         for index, question in enumerate(quiz):
 
-            selected_answer = st.session_state.get(
-                f"answer_{index}"
+            selected_answer = (
+                st.session_state.get(
+                    f"answer_{index}"
+                )
             )
+
 
             user_letter = (
 
@@ -870,17 +1148,21 @@ if (
                 else "-"
             )
 
+
             correct_letter = (
                 question["correct"]
             )
+
 
             st.markdown(
                 f"### Question {question['number']}"
             )
 
+
             st.write(
                 question["question"]
             )
+
 
             if user_letter == correct_letter:
 
@@ -891,6 +1173,7 @@ if (
                     f"{question['options'][user_letter]}"
                 )
 
+
             else:
 
                 user_text = (
@@ -900,11 +1183,13 @@ if (
                     )
                 )
 
+
                 correct_text = (
                     question["options"][
                         correct_letter
                     ]
                 )
+
 
                 st.error(
                     f"Incorrect ✗\n\n"
@@ -915,12 +1200,15 @@ if (
                     f"{correct_text}"
                 )
 
+
             st.info(
                 "Explanation: "
                 + question["explanation"]
             )
 
+
             st.divider()
+
 
         if st.button(
             "🔄 Create New Quiz",
@@ -934,6 +1222,11 @@ if (
             st.session_state.quiz_score = 0
 
             st.rerun()
+
+
+# ============================================================
+# FOOTER
+# ============================================================
 
 st.divider()
 
